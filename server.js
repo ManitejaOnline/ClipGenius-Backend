@@ -29,6 +29,11 @@ const FILE_TTL_MS = 60 * 60 * 1000;
 const JOB_EXPIRED_MESSAGE = "These clips have expired. Please generate them again.";
 const YTDLP_UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+// GET / - Health check, since the website itself is served by the Next.js frontend
+app.get("/", (req, res) => {
+  res.json({ success: true, data: { service: "ClipGenius API", status: "running" } });
+});
+
 app.get("/videos/:file", (req, res, next) => {
   if (!("download" in req.query)) return next();
   res.download(path.join(VIDEO_DIR, path.basename(req.params.file)), (err) => {
