@@ -26,6 +26,7 @@ const CLIP_DURATIONS = [15, 30, 60];
 const DEFAULT_CLIP_DURATION = 30;
 const DEFAULT_FRAMING = "crop";
 const FILE_TTL_MS = 60 * 60 * 1000;
+const JOB_EXPIRED_MESSAGE = "These clips have expired. Please generate them again.";
 const YTDLP_UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 app.get("/videos/:file", (req, res, next) => {
@@ -103,14 +104,14 @@ app.post("/api/jobs", (req, res) => {
 
 app.get("/api/jobs/:id", (req, res) => {
   const job = getJob(req.params.id);
-  if (!job) return res.status(404).json({ success: false, error: "Job not found" });
+  if (!job) return res.status(404).json({ success: false, error: JOB_EXPIRED_MESSAGE });
   res.json({ success: true, data: toPublicJob(job) });
 });
 
 // POST /api/jobs/:id/clips - { startTime } adds a clip starting near startTime
 app.post("/api/jobs/:id/clips", (req, res) => {
   const job = getJob(req.params.id);
-  if (!job) return res.status(404).json({ success: false, error: "Job not found" });
+  if (!job) return res.status(404).json({ success: false, error: JOB_EXPIRED_MESSAGE });
   if (job.status === "running" || !job.previews) {
     return res.status(409).json({ success: false, error: "Please wait until the current clips are ready" });
   }
@@ -131,7 +132,8 @@ app.post("/api/jobs/:id/clips", (req, res) => {
 // GET /api/jobs/:id/zip - All clips of a job in one download
 app.get("/api/jobs/:id/zip", (req, res) => {
   const job = getJob(req.params.id);
-  if (!job?.previews?.length) return res.status(404).json({ success: false, error: "No clips to download" });
+  // Opened as a plain link, so the error is plain text rather than JSON
+  if (!job?.previews?.length) return res.status(404).type("text").send(JOB_EXPIRED_MESSAGE);
 
   res.attachment(`${job.videoId}-clips.zip`);
   const archive = new ZipArchive({ store: true });
