@@ -24,6 +24,8 @@ if (!fs.existsSync(VIDEO_DIR)) fs.mkdirSync(VIDEO_DIR);
 const PORT = process.env.PORT || 5000;
 const CLIP_DURATIONS = [15, 30, 60];
 const DEFAULT_CLIP_DURATION = 30;
+const DEFAULT_CLIP_COUNT = 3;
+const MAX_CLIP_COUNT = 5;
 const DEFAULT_FRAMING = "crop";
 const FILE_TTL_MS = 60 * 60 * 1000;
 const JOB_EXPIRED_MESSAGE = "These clips have expired. Please generate them again.";
@@ -84,12 +86,21 @@ app.get("/api/video-info", async (req, res) => {
 
 // POST /api/jobs - Queues highlight clip generation; poll GET /api/jobs/:id for progress
 app.post("/api/jobs", (req, res) => {
-  const { url, clipDuration = DEFAULT_CLIP_DURATION, captions = true, framing = DEFAULT_FRAMING } = req.body;
+  const {
+    url,
+    clipDuration = DEFAULT_CLIP_DURATION,
+    clipCount = DEFAULT_CLIP_COUNT,
+    captions = true,
+    framing = DEFAULT_FRAMING,
+  } = req.body;
 
   const videoId = extractVideoId(url);
   if (!videoId) return res.status(400).json({ success: false, error: "Invalid YouTube URL" });
   if (!CLIP_DURATIONS.includes(clipDuration)) {
     return res.status(400).json({ success: false, error: `Clip length must be one of ${CLIP_DURATIONS.join(", ")} seconds` });
+  }
+  if (!Number.isInteger(clipCount) || clipCount < 1 || clipCount > MAX_CLIP_COUNT) {
+    return res.status(400).json({ success: false, error: `Number of clips must be between 1 and ${MAX_CLIP_COUNT}` });
   }
   if (!FRAMINGS.includes(framing)) {
     return res.status(400).json({ success: false, error: `Framing must be one of ${FRAMINGS.join(", ")}` });
@@ -100,6 +111,7 @@ app.post("/api/jobs", (req, res) => {
   const job = createJob({
     videoId,
     clipDuration,
+    clipCount,
     captions: Boolean(captions),
     framing,
     baseUrl: `${req.protocol}://${req.get("host")}`,
